@@ -52,6 +52,7 @@ while(True):
     
     # Capture current frame from the camera
     ret, frame = cap.read()
+    frame = cv2.flip(frame, 1)   # 1 = horizontal (mirror)
     if not ret:
         logging.error("Could not read a frame from camera 0")
         break
