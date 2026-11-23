@@ -87,6 +87,8 @@ while True:
         for i in range(len(corners)):
             ok, rvec, tvec = cv2.solvePnP(marker_points, corners[i], CM, dist_coef, flags=cv2.SOLVEPNP_IPPE_SQUARE)
             if ok:
+                marker_id = int(ids.flatten()[i])
+                print(f"Marker ID: {marker_id}, tvec: {tvec.flatten()}")
                 # Draw axis for each marker (axis length 10 mm)
                 frame = cv2.drawFrameAxes(frame, CM, dist_coef, rvec, tvec, 10)
 
