@@ -12,14 +12,16 @@ import cv2.aruco as aruco
 import logging
 import numpy as np
 import time # We will use this to ensure a steady processing rate
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 
 # Load the camera calibration values
-camera_calibration = np.load('Sample_Calibration.npz')
-CM=camera_calibration['CM'] #camera matrix
-dist_coef=camera_calibration['dist_coef']# distortion coefficients from the camera
-logging.info("Loaded camera calibration from Sample_Calibration.npz")
+calibration_path = Path(__file__).resolve().parent / 'Sample_Calibration.npz'
+camera_calibration = np.load(calibration_path)
+CM = camera_calibration['CM']  # camera matrix
+dist_coef = camera_calibration['dist_coef']  # distortion coefficients
+logging.info("Loaded camera calibration from %s", calibration_path)
 
 # Define the ArUco dictionary and parameters
 marker_size = 40 # the real size of the printed marker in mm
