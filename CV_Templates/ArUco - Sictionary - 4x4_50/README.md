@@ -1,0 +1,2 @@
+ArUco markers – 4×4_50 dictionary (IDs 0–49)
+This folder contains printable PNG images for the OpenCV ArUco DICT_4X4_50 dictionary. The markers are numbered from aruco0.png through aruco49.png and can be used for detection, tracking, and pose-estimation exercises. No external link is required.

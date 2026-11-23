@@ -6,7 +6,7 @@ This folder contains Python templates and utilities for computer vision applicat
 
 - **CV_Python_template.py** - Basic computer vision template for image processing tasks
 - **CV_Python_template_with_resolutions.py** - Extended template with multiple resolution support
-- **CV_Python_Aruco_4_10.py** - ArUco marker detection implementation (version 4.10)
+- **CV_Python_Aruco_4_10.py** - ArUco marker detection and pose estimation (works with OpenCV 4.7+ and OpenCV 5)
 - **aruco_calibration_IGversion.ipynb** - Jupyter notebook for camera calibration using ArUco markers
 - **Sample_Calibration.npz** - Pre-computed camera calibration parameters
 
@@ -21,6 +21,7 @@ These templates provide a foundation for computer vision projects including:
 ## Requirements
 
 Typical dependencies include:
-- OpenCV
-- NumPy
-- Jupyter (for notebooks)
+- OpenCV (`pip install opencv-contrib-python` for ArUco support)
+- NumPy and Matplotlib for numerical operations and plotting 
+(`pip install numpy matplotlib`)
+- Jupyter (`pip install pillow ipykernel` for notebook support)

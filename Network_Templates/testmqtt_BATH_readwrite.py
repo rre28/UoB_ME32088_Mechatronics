@@ -1,12 +1,15 @@
 import paho.mqtt.client as mqtt # This is the library to do the MQTT communications
 import time # This is the library that will allow us to use the sleep function
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 # The callback for when we connect to the server. The meaning of the return code (rc) can be found here:
 # https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901079
 # Success (code 0) is good.
 # After we connect we subscribe to one (or more) topics in this case the topic TeamTopic/1
 def on_connect(client,userdata,flags,rc,properties):
-    print ("Connected with result code "+str(rc))
+    logging.info("Connected with result code %s", rc)
     client.subscribe(MainTopic+"1")
 
 
@@ -17,7 +20,12 @@ def on_connect(client,userdata,flags,rc,properties):
 #   int() converts the remaining bytes into an integer, it treats them as a string
 #   str() converts the integer into a string for the purpose of printing it. See below (l.56) for an alternative way to do this
 def on_message(client, userdata, msg):
-    print(str(time.time())+" In topic: "+msg.topic+" the value was "+ str(int(msg.payload.rstrip(b'\x00'))))
+    logging.info(
+        "%s In topic: %s the value was %s",
+        time.time(),
+        msg.topic,
+        int(msg.payload.rstrip(b'\x00')),
+    )
 
 # Create the mqtt client object
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2) # VERSION2 is the callback format of paho-mqtt 2.x
@@ -53,7 +61,7 @@ while(1):
         client.publish(MainTopic+"5",str(val))
 
         # Plot in the terminal what we just did
-        print("%s5 %d" % (MainTopic, val))
+        logging.info("%s5 %d", MainTopic, val)
         val=val+1
     
     # Capture a KeyboardInterrupt, i.e. Ctrl-C in the terminal window
@@ -67,4 +75,4 @@ while(1):
 
     # Capture any other error from the three lines (most likely will be a publish error)
     except:
-        print ("There was an error while publishing the data.")
+        logging.error("There was an error while publishing the data.")

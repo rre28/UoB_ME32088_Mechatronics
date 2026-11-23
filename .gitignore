@@ -1,7 +1,10 @@
 .DS_Store
+.vscode
+.venv
 /NewMech2
 /CV_Templates/workdir
 *.zip
 /Fritzing Schematics/**/*.png
 /Fritzing Schematics/**/*.svg
+/CV_Templates/.ipynb_checkpoints
 

@@ -67,6 +67,18 @@ Circuit design diagrams for reference and learning.
 
 ## Development Environment Setup
 
+### Step 0: Fork the Repository (Optional but Recommended)
+
+A fork is your own GitHub copy of this repository, where you can make changes without changing the original.
+
+1. Sign in to [GitHub](https://github.com/) and open <https://github.com/IGeorgilas/UoB_ME32088_Mechatronics>.
+2. Select **Fork** in the upper-right corner.
+3. Choose your GitHub account as the owner. Keep the default repository name and settings, then select **Create fork**.
+4. Open your new fork and copy its URL. It should look like `https://github.com/YOUR-USERNAME/UoB_ME32088_Mechatronics`.
+
+Skip this step if you only want to download the repository and do not need your own copy.
+
+
 ### Step 1: Clone the Repository
 
 ```bash

@@ -43,6 +43,10 @@ These templates demonstrate:
 - Connection management
 - Message handling
 
+## Logging
+
+All templates use Python's built-in [`logging`](https://docs.python.org/3/library/logging.html) module at the INFO level for consistent status and message output across protocols.
+
 ## Requirements
 
 - Python 3.x

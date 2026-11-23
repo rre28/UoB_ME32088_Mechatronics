@@ -8,6 +8,9 @@ This is an example to send data as a UDP datagram.
 
 # First we import our libraries
 import socket   # This library will allow you to communicate over the network
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 # This is the IP address of the machine that the data will be send to
 UDP_IP = "127.0.0.1"
@@ -17,13 +20,10 @@ UDP_PORT = 50001
 # This is the message. In this case it is a string 
 MESSAGE = "Hello, World!"
 
-# Toy example to show how to send a list of numbers as a string. You can use any data type you want, but you need to convert it to a string first.
-# For example, if you want to send a list of numbers, you can do the following
-
 # Print the values for confirmation
-print ("UDP target IP:", UDP_IP)
-print ("UDP target port:", UDP_PORT)
-print ("message:", MESSAGE)
+logging.info("UDP target IP: %s", UDP_IP)
+logging.info("UDP target port: %s", UDP_PORT)
+logging.info("message: %s", MESSAGE)
  
 # Create the socket for the UDP communication
 sock = socket.socket(socket.AF_INET,    # Family of addresses, in this case IP type 
