@@ -38,6 +38,10 @@ cv2.namedWindow("gray-image", cv2.WINDOW_AUTOSIZE)
 #Create window for Canny Edge Detection
 cv2.namedWindow("canny-image", cv2.WINDOW_AUTOSIZE)
 
+#Create window for Gaussian Blur
+cv2.namedWindow("blurred-image", cv2.WINDOW_AUTOSIZE)
+cv2.moveWindow("blurred-image", 1920, 100)
+
 #Position the windows next to each other
 cv2.moveWindow("frame-image",0,100)
 cv2.moveWindow("gray-image",640,100)
@@ -60,7 +64,10 @@ while(True):
     # Convert the image from the camera to Gray scale
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    # Canny Edge Detection calculation
+    # Apply Gaussian blur to the grayscale image
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Canny Edge Detection calculation, change gray to blurred if you want to apply Canny on the blurred image
     canny = cv2.Canny(gray,80,200)
     
     # Display the original frame in a window
@@ -72,6 +79,9 @@ while(True):
     # Display the Canny Edge Detection image in another window
     cv2.imshow('canny-image',canny)
     
+    # Display the Gaussian Blur image in another window
+    cv2.imshow('blurred-image',blurred)
+
     # Stop the performance counter
     end = time.perf_counter()
     
