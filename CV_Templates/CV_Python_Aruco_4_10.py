@@ -9,6 +9,7 @@ It requires OpenCV 4.7 or newer, including OpenCV 5, and uses ArucoDetector and 
 
 import cv2
 import cv2.aruco as aruco
+import csv
 import logging
 import numpy as np
 import time # We will use this to ensure a steady processing rate
@@ -55,8 +56,26 @@ logging.info("Camera 0 opened")
 start_time = time.time()
 fps = 0
 last_logged_marker_ids = None
+frame_number = 0
+
+# Export one row per successfully estimated marker
+csv_path = Path(__file__).resolve().parent / 'aruco_poses.csv'
+csv_file = open(csv_path, 'w', newline='', encoding='utf-8')
+csv_writer = csv.writer(csv_file)
+csv_writer.writerow([
+    'frame',
+    'marker_id',
+    'rvec_x',
+    'rvec_y',
+    'rvec_z',
+    'tvec_x_mm',
+    'tvec_y_mm',
+    'tvec_z_mm',
+])
 
 while True:
+    frame_number += 1
+
     # Capture frame-by-frame
     ret, frame = cap.read()
     if not ret:
@@ -83,12 +102,26 @@ while True:
         # Draw detected markers
         frame = aruco.drawDetectedMarkers(frame, corners, ids)
 
-        # Estimate the pose of each marker from its 4 detected corners
-        for i in range(len(corners)):
-            ok, rvec, tvec = cv2.solvePnP(marker_points, corners[i], CM, dist_coef, flags=cv2.SOLVEPNP_IPPE_SQUARE)
+        # Estimate and export the pose of each marker
+        for ind, marker_id in enumerate(ids.flatten()):
+            ok, rvec, tvec = cv2.solvePnP(marker_points, corners[ind], CM, dist_coef, flags=cv2.SOLVEPNP_IPPE_SQUARE)
             if ok:
-                marker_id = int(ids.flatten()[i])
-                print(f"Marker ID: {marker_id}, tvec: {tvec.flatten()}")
+                marker_id = int(marker_id)
+                rvec_values = rvec.flatten()
+                tvec_values = tvec.flatten()
+
+                print(
+                    f"Marker ID: {marker_id}, "
+                    f"rvec: {rvec_values}, tvec: {tvec_values}"
+                )
+                csv_writer.writerow([
+                    frame_number,
+                    marker_id,
+                    *rvec_values,
+                    *tvec_values,
+                ])
+                csv_file.flush()
+
                 # Draw axis for each marker (axis length 10 mm)
                 frame = cv2.drawFrameAxes(frame, CM, dist_coef, rvec, tvec, 10)
 
@@ -113,6 +146,7 @@ while True:
 
 
 # When everything is done, release the capture and close windows
+csv_file.close()
 cap.release()
 cv2.destroyAllWindows()
 logging.info("Camera capture stopped")
