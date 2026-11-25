@@ -91,7 +91,7 @@ MARKER_FLOW = -1                    # <-- CHECK ON THE RIG: while the gantry dri
 BAND_HALF_WIDTH_FRAC = 0.15         # half-width of the centre band; 0.15 makes it span 30% of the travel axis
 BAND_OFFSET_FRAC = 0.0              # shift the band centre along the travel axis (+ = in the +image-axis direction).
                                     # Use this to make up for the distance travelled during detection + stopping.
-CROSS_HALF_FRAC = 0.15              # marker must also be within this fraction of the centre line across the travel axis
+CROSS_HALF_FRAC = 0.05              # marker must also be within this fraction of the centre line across the travel axis
                                     #   (0.15 -> box is 30% of the frame height; was 0.30 = 60%)
 CONFIRM_FRAMES = 3                  # consecutive frames a marker must be seen in the band before STOP is sent
 CHOOSE_BY = "central"               # if several markers qualify: "central" (closest to band centre) or "largest"
@@ -123,7 +123,7 @@ SERVO_DUTY_RIGHT = 0.10
 DUTY_SCALE = 2000                   # duty sent as a whole-number byte = duty x 2000 (0.075 -> 150); Pi multiplies by 0.0005
 SERVO_DIRECTION = -1                # FLIPPED (run 25 Nov: laser tilted the wrong way). Match the computed tilt to the servo.
 LASER_HEIGHT_MM = 580.0             # simple method only (no calibration file): camera ~590 mm above the table, laser ~10 mm lower
-LASER_OFFSET_MM = -50.0             # laser pivot is 50 mm left of the camera axis along the travel axis.
+LASER_OFFSET_MM = 0             # laser pivot is 50 mm left of the camera axis along the travel axis.
                                     #   Each 10 mm here moves the aim by ~1 deg at 580 mm.  Tune if shots are consistently off.
 MEASURE_FRAMES = 5                  # frames (stationary gantry) whose median gives the aiming angle
 
