@@ -108,7 +108,7 @@ SERVO_DUTY_LEFT = 0.05
 SERVO_DUTY_NEUTRAL = 0.075          # the laser's DEFAULT position: used whenever it is not aiming at a marker
 SERVO_DUTY_RIGHT = 0.10
 DUTY_SCALE = 2000                   # duty sent as a whole-number byte = duty x 2000 (0.075 -> 150); Pi multiplies by 0.0005
-SERVO_DIRECTION = +1                # +1 or -1: flip if the laser tilts the wrong way (+1: marker to +x/+y -> turn right)
+SERVO_DIRECTION = -1                # Flip the computed tilt direction to match the servo's physical orientation.
 LASER_HEIGHT_MM = 150.0             # <-- MEASURE: vertical distance from the servo pivot down to the marker plane
 LASER_OFFSET_MM = 0.0               # <-- MEASURE: laser pivot position relative to the camera axis along the travel axis (mm)
 MEASURE_FRAMES = 5                  # frames (stationary gantry) whose median gives the aiming angle
