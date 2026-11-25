@@ -75,9 +75,9 @@ START_DELAY_S = 2.0         # after connecting, wait this long (gantry held stil
 # ---- Camera / ArUco --------------------------------------------------------
 CAMERA_INDEX = 0                    # which camera (0 = first)
 CAMERA_BACKEND = cv2.CAP_ANY        # on Windows, cv2.CAP_DSHOW often opens faster
-FRAME_WIDTH, FRAME_HEIGHT = 640, 480
+FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080   # MUST match the resolution calibration.npz was made at (1920x1080)
 ARUCO_DICT = aruco.DICT_4X4_50      # same dictionary as the tutorial script
-MARKER_SIZE_MM = 100                # printed marker side (mm), black square edge to edge
+MARKER_SIZE_MM = 80                 # printed marker side (mm), black square edge to edge
 PROCESSING_PERIOD_S = 0.0           # minimum time between processed frames (0 = every frame).
                                     # Do not use sleep() to slow down: it makes the camera buffer lag behind.
 CAMERA_FAIL_LIMIT = 10              # this many failed reads in a row = camera failure
@@ -88,7 +88,7 @@ TRAVEL_AXIS = "x"                   # image axis the gantry travels along: "x" (
 MARKER_FLOW = -1                    # <-- CHECK ON THE RIG: while the gantry drives FORWARD, markers move across the image
                                     #     towards -x (or -y) -> -1, towards +x (or +y) -> +1.  Used to tell a marker that is
                                     #     still AHEAD from one the gantry has already PASSED (missed -> given up).
-BAND_HALF_WIDTH_FRAC = 0.50         # half-width of the centre band; 0.50 makes it span 100% of the travel axis
+BAND_HALF_WIDTH_FRAC = 0.15         # half-width of the centre band; 0.15 makes it span 30% of the travel axis
 BAND_OFFSET_FRAC = 0.0              # shift the band centre along the travel axis (+ = in the +image-axis direction).
                                     # Use this to make up for the distance travelled during detection + stopping.
 CROSS_HALF_FRAC = 0.15              # marker must also be within this fraction of the centre line across the travel axis
@@ -107,7 +107,8 @@ MAX_ATTEMPTS = 3                    # if the gantry stops SHORT of a marker (out
 # If the file is missing, the script falls back to the simple method (marker size as scale + LASER_HEIGHT_MM).
 USE_CALIBRATION = True
 CALIBRATION_FILE = "calibration.npz"        # your calibration file; a bare name = same folder as this script.
-                                            #     Must be made at the same resolution as FRAME_WIDTH x FRAME_HEIGHT.
+                                            #     Must be made at the same resolution as FRAME_WIDTH x FRAME_HEIGHT
+                                            #     (current file: 1920x1080, centre cx 927, cy 562).
 LASER_ABOVE_CAMERA_MM = -10.0       # laser pivot about 1 cm BELOW the camera lens.  (calibrated method) how far the laser's servo pivot is ABOVE the camera
                                     #     lens (negative if it is below).  Laser height over the marker = camera distance z
                                     #     (measured by solvePnP) + this.
@@ -120,9 +121,9 @@ SERVO_DUTY_LEFT = 0.05
 SERVO_DUTY_NEUTRAL = 0.075          # the laser's DEFAULT position: used whenever it is not aiming at a marker
 SERVO_DUTY_RIGHT = 0.10
 DUTY_SCALE = 2000                   # duty sent as a whole-number byte = duty x 2000 (0.075 -> 150); Pi multiplies by 0.0005
-SERVO_DIRECTION = +1                # Match the computed tilt direction to the servo's physical orientation.
+SERVO_DIRECTION = -1                # FLIPPED (run 25 Nov: laser tilted the wrong way). Match the computed tilt to the servo.
 LASER_HEIGHT_MM = 580.0             # simple method only (no calibration file): camera ~590 mm above the table, laser ~10 mm lower
-LASER_OFFSET_MM = 0.0               # laser pivot position relative to the camera axis along the travel axis (mm); about in line.
+LASER_OFFSET_MM = -50.0             # laser pivot is 50 mm left of the camera axis along the travel axis.
                                     #   Each 10 mm here moves the aim by ~1 deg at 580 mm.  Tune if shots are consistently off.
 MEASURE_FRAMES = 5                  # frames (stationary gantry) whose median gives the aiming angle
 
@@ -685,6 +686,17 @@ def main(max_seconds=None):
             ok, img = cap.read() if cap.isOpened() else (False, None)
             if ok:
                 camera_fail, frame = 0, img
+                if region is None:                           # first frame: check the camera gave the size asked for
+                    h, w = frame.shape[:2]
+                    log.info("Camera frame size: %d x %d", w, h)
+                    if (w, h) != (FRAME_WIDTH, FRAME_HEIGHT):
+                        log.warning("Camera gives %dx%d, not %dx%d - the calibration will NOT match and aiming "
+                                    "will be wrong", w, h, FRAME_WIDTH, FRAME_HEIGHT)
+                    if CAM_MATRIX is not None:
+                        cx, cy = CAM_MATRIX[0, 2], CAM_MATRIX[1, 2]
+                        if abs(cx - w / 2) > 0.1 * w or abs(cy - h / 2) > 0.1 * h:
+                            log.warning("Calibration centre (%.0f, %.0f) is far from the frame centre (%d, %d) - "
+                                        "calibration was made at a different resolution", cx, cy, w // 2, h // 2)
             else:
                 camera_fail += 1
                 if camera_fail >= CAMERA_FAIL_LIMIT and now - last_cam_retry > CAMERA_RETRY_S:
