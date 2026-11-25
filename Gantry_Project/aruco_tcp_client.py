@@ -87,10 +87,12 @@ TRAVEL_AXIS = "x"                   # image axis the gantry travels along: "x" (
 MARKER_FLOW = -1                    # <-- CHECK ON THE RIG: while the gantry drives FORWARD, markers move across the image
                                     #     towards -x (or -y) -> -1, towards +x (or +y) -> +1.  Used to tell a marker that is
                                     #     still AHEAD from one the gantry has already PASSED (missed).
-BAND_HALF_WIDTH_FRAC = 0.06         # half-width of the centre band, as a fraction of the frame size along the travel axis
+BAND_HALF_WIDTH_FRAC = 0.15         # half-width of the centre band, as a fraction of the frame size along the travel axis
+                                    #   (0.15 -> box is 30% of the frame width; was 0.06 = 12%)
 BAND_OFFSET_FRAC = 0.0              # shift the band centre along the travel axis (+ = in the +image-axis direction).
                                     # Use this to make up for the distance travelled during detection + stopping.
-CROSS_HALF_FRAC = 0.30              # marker must also be within this fraction of the centre line across the travel axis
+CROSS_HALF_FRAC = 0.15              # marker must also be within this fraction of the centre line across the travel axis
+                                    #   (0.15 -> box is 30% of the frame height; was 0.30 = 60%)
 CONFIRM_FRAMES = 3                  # consecutive frames a marker must be seen in the band before STOP is sent
 CHOOSE_BY = "central"               # if several markers qualify: "central" (closest to band centre) or "largest"
 
