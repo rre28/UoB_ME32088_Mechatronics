@@ -42,6 +42,7 @@ import struct
 import time
 from collections import deque
 from dataclasses import dataclass
+from pathlib import Path
 
 import cv2
 import cv2.aruco as aruco
@@ -87,8 +88,7 @@ TRAVEL_AXIS = "x"                   # image axis the gantry travels along: "x" (
 MARKER_FLOW = -1                    # <-- CHECK ON THE RIG: while the gantry drives FORWARD, markers move across the image
                                     #     towards -x (or -y) -> -1, towards +x (or +y) -> +1.  Used to tell a marker that is
                                     #     still AHEAD from one the gantry has already PASSED (missed).
-BAND_HALF_WIDTH_FRAC = 0.15         # half-width of the centre band, as a fraction of the frame size along the travel axis
-                                    #   (0.15 -> box is 30% of the frame width; was 0.06 = 12%)
+BAND_HALF_WIDTH_FRAC = 0.50         # half-width of the centre band; 0.50 makes it span 100% of the travel axis
 BAND_OFFSET_FRAC = 0.0              # shift the band centre along the travel axis (+ = in the +image-axis direction).
                                     # Use this to make up for the distance travelled during detection + stopping.
 CROSS_HALF_FRAC = 0.15              # marker must also be within this fraction of the centre line across the travel axis
@@ -101,6 +101,16 @@ MAX_ATTEMPTS = 3                    # times the gantry may go back for the same 
 REVERSE_TIMEOUT_S = 6.0             # reversing for this long without catching the marker -> give it up, carry on forward
 
 # ---- Aiming ----------------------------------------------------------------
+# Camera calibration (same .npz format as CV_Python_Aruco_4_10.py: keys 'CM' = camera matrix, 'dist_coef').
+# With it, cv2.solvePnP gives each marker's true position in mm relative to the camera (x, y AND distance z),
+# corrected for lens distortion - so the angle is right at the edges of the frame, not only in the centre.
+# If the file is missing, the script falls back to the simple method (marker size as scale + LASER_HEIGHT_MM).
+USE_CALIBRATION = True
+CALIBRATION_FILE = "calibration.npz"        # your calibration file; a bare name = same folder as this script.
+                                            #     Must be made at the same resolution as FRAME_WIDTH x FRAME_HEIGHT.
+LASER_ABOVE_CAMERA_MM = -10.0       # laser pivot about 1 cm BELOW the camera lens.  (calibrated method) how far the laser's servo pivot is ABOVE the camera
+                                    #     lens (negative if it is below).  Laser height over the marker = camera distance z
+                                    #     (measured by solvePnP) + this.
 ANGLE_MODE = "computed"             # "computed": tilt from the marker position measured AFTER the gantry has stopped
                                     # "fixed"   : always FIXED_TILT_DEG (0 = laser straight down at the band centre)
 FIXED_TILT_DEG = 0.0
@@ -110,9 +120,10 @@ SERVO_DUTY_LEFT = 0.05
 SERVO_DUTY_NEUTRAL = 0.075          # the laser's DEFAULT position: used whenever it is not aiming at a marker
 SERVO_DUTY_RIGHT = 0.10
 DUTY_SCALE = 2000                   # duty sent as a whole-number byte = duty x 2000 (0.075 -> 150); Pi multiplies by 0.0005
-SERVO_DIRECTION = -1                # Flip the computed tilt direction to match the servo's physical orientation.
-LASER_HEIGHT_MM = 150.0             # <-- MEASURE: vertical distance from the servo pivot down to the marker plane
-LASER_OFFSET_MM = 0.0               # <-- MEASURE: laser pivot position relative to the camera axis along the travel axis (mm)
+SERVO_DIRECTION = +1                # Match the computed tilt direction to the servo's physical orientation.
+LASER_HEIGHT_MM = 580.0             # simple method only (no calibration file): camera ~590 mm above the table, laser ~10 mm lower
+LASER_OFFSET_MM = 0.0               # laser pivot position relative to the camera axis along the travel axis (mm); about in line.
+                                    #   Each 10 mm here moves the aim by ~1 deg at 580 mm.  Tune if shots are consistently off.
 MEASURE_FRAMES = 5                  # frames (stationary gantry) whose median gives the aiming angle
 
 # ---- Fixed waits (no feedback from the Pi, so these must agree with the Simulink chart constants) ----
@@ -253,21 +264,69 @@ class Region:
         cv2.drawMarker(frame, (self.width // 2, self.height // 2), colour, cv2.MARKER_CROSS, 20, 1)
 
 
+# ---- camera calibration (loaded in main) ----
+CAM_MATRIX = None
+DIST_COEFFS = None
+
+
+def load_calibration():
+    """Load CM and dist_coef from the calibration .npz.  Returns (None, None) if it is switched off or missing."""
+    if not USE_CALIBRATION:
+        log.info("Calibration switched off - using the simple method (LASER_HEIGHT_MM)")
+        return None, None
+    path = Path(CALIBRATION_FILE)
+    if not path.is_absolute():
+        path = Path(__file__).resolve().parent / path
+    try:
+        data = np.load(path)
+        cm, dist = data["CM"], data["dist_coef"]
+        log.info("Loaded camera calibration from %s", path)
+        return cm, dist
+    except (OSError, KeyError) as e:
+        log.warning("Could not load calibration %s (%s) - using the simple method (LASER_HEIGHT_MM)", path, e)
+        return None, None
+
+
+def marker_position_mm(m):
+    """(x, y, z) of the marker centre in mm, in the camera's frame (x right, y down, z = distance from the lens),
+    from cv2.solvePnP with the calibration - same call as the tutorial script.  None if no calibration or it fails."""
+    if CAM_MATRIX is None:
+        return None
+    half = MARKER_SIZE_MM / 2
+    obj = np.array([[-half, half, 0], [half, half, 0], [half, -half, 0], [-half, -half, 0]], dtype=np.float32)
+    ok, _rvec, tvec = cv2.solvePnP(obj, m.corners.reshape(4, 1, 2).astype(np.float32), CAM_MATRIX, DIST_COEFFS,
+                                   flags=cv2.SOLVEPNP_IPPE_SQUARE)
+    return tuple(float(v) for v in tvec.flatten()) if ok else None
+
+
 def tilt_reachable(tilt_deg):
     """True if the servo can point the laser there (within 45 degrees of straight down, either side)."""
     return abs(tilt_deg) <= SERVO_RANGE_DEG
 
 
 def compute_tilt(m, region):
-    """Tilt from straight down (deg, + = right) that points the laser at marker m.  Uses the marker's own
-    known size as the scale (mm per pixel), so no camera calibration file is needed.  Assumes the camera looks
-    straight down.  Not limited to the servo range; tilt_reachable() decides whether the laser can get there."""
+    """Tilt from straight down (deg, + = right) that points the laser at marker m.  Assumes the camera looks
+    straight down.  Not limited to the servo range; tilt_reachable() decides whether the laser can get there.
+
+    Calibrated method (calibration file loaded): solvePnP gives the marker's position in mm, corrected for lens
+      distortion, and its distance z from the camera, so the laser height is measured, not guessed:
+          sideways offset d = x (or y) - LASER_OFFSET_MM,   height h = z + LASER_ABOVE_CAMERA_MM
+    Simple method (no calibration): marker size gives mm per pixel, height = LASER_HEIGHT_MM.
+    Either way: tilt = atan(d / h)."""
     if ANGLE_MODE == "fixed":
         return float(FIXED_TILT_DEG)
-    mm_per_px = MARKER_SIZE_MM / m.side
-    along_px = region.split(m)[0] - region.n_along / 2           # offset from the CAMERA axis (not the band centre)
-    d_mm = along_px * mm_per_px - LASER_OFFSET_MM                # offset from the LASER axis
-    theta = math.degrees(math.atan2(d_mm, LASER_HEIGHT_MM))      # tilt needed
+    pos = marker_position_mm(m)
+    if pos is not None:
+        x, y, z = pos
+        along_mm = x if TRAVEL_AXIS == "x" else y                # offset from the CAMERA axis along the travel axis
+        d_mm = along_mm - LASER_OFFSET_MM                        # offset from the LASER axis
+        h_mm = z + LASER_ABOVE_CAMERA_MM                         # laser pivot height above the marker
+    else:
+        mm_per_px = MARKER_SIZE_MM / m.side
+        along_px = region.split(m)[0] - region.n_along / 2       # offset from the CAMERA axis (not the band centre)
+        d_mm = along_px * mm_per_px - LASER_OFFSET_MM            # offset from the LASER axis
+        h_mm = LASER_HEIGHT_MM
+    theta = math.degrees(math.atan2(d_mm, h_mm))                 # tilt needed
     return SERVO_DIRECTION * theta
 
 
@@ -568,6 +627,9 @@ class Controller:
                 self.command(CMD_STOP, now, duty)                    # [2, duty x 2000]: aim and fire
                 log.info("Aim marker %d: tilt %.1f deg -> duty %.4f (byte %d)",
                          self.target_id, self.last_tilt, duty, round(duty * DUTY_SCALE))
+                pos = marker_position_mm(m) if same else None
+                if pos:
+                    log.info("   marker position from camera: x %.0f mm, y %.0f mm, distance z %.0f mm", *pos)
                 self.go(WAIT_DONE, now)
             elif now - self.t_state > MEASURE_TIMEOUT_S:
                 self.go_back_for(self.target_id, now, "not visible after stopping (overshot?)")
@@ -610,6 +672,8 @@ def draw_overlay(frame, region, markers, ctl, link):
 #  MAIN LOOP
 # =============================================================================
 def main(max_seconds=None):
+    global CAM_MATRIX, DIST_COEFFS
+    CAM_MATRIX, DIST_COEFFS = load_calibration()
     num_targets = NUM_TARGETS if NUM_TARGETS else ask_num_targets()
     log.info("Number of targets: %d", num_targets)
     detector = make_detector()
